@@ -12,23 +12,23 @@ namespace SakuraFmClient
     public sealed class SakuraFmClient : IDisposable
     {
         private const int refreshTimeout = 60_000; // minute
-        internal RestClient ClerkRestClient { get; } = new("https://clerk.sakura.fm");
-        internal RestClient SakuraRestClient { get; } = new("https://www.sakura.fm");
-        internal RestClient ApiRestClient { get; } = new("https://api.sakura.fm");
-        internal string Cookie { get; set; }
+        internal RestClient ApiRestClient { get; set; } = null!;
+        internal RestClient SakuraRestClient { get; set; } = null!;
+        internal RestClient ClerkRestClient { get; set; } = null!;
+        internal string Cookie { get; set; } = null!;
         internal bool Init { get; set; } = false;
 
         private readonly Stopwatch _sw = Stopwatch.StartNew();
 
-        private void Refresh()
+        public void Refresh()
         {
+            if (_sw.ElapsedMilliseconds < refreshTimeout)
+            {
+                return;
+            }
+
             lock (ClerkRestClient)
             {
-                if (_sw.ElapsedMilliseconds < refreshTimeout)
-                {
-                    return;
-                }
-
                 foreach (var param in ClerkRestClient.DefaultParameters.ToArray())
                 {
                     ClerkRestClient.DefaultParameters.RemoveParameter(param.Name!, param.Type);
@@ -70,11 +70,24 @@ namespace SakuraFmClient
     {
         public static async Task InitializeAsync(this SakuraFmClient sakuraFmClient)
         {
+            sakuraFmClient.ApiRestClient = new RestClient("https://api.sakura.fm");
+            sakuraFmClient.SakuraRestClient = new RestClient("https://www.sakura.fm");
+            sakuraFmClient.SakuraRestClient.AddDefaultHeaders(new Dictionary<string, string>
+            {
+                { "Accept", "application/json" },
+                { "Accept-Encoding", "gzip, deflate, br, zstd" },
+                { "Accept-Language", "en-US,en;q=0.5" },
+                { "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" },
+                { "Referer", "https://www.sakura.fm" },
+                { "Rsc", "1" },
+                { "Next-Url", "/en"}
+            });
+
+            sakuraFmClient.ClerkRestClient = new RestClient("https://clerk.sakura.fm");
             var request = new RestRequest("/", Method.Get);
             var response = await sakuraFmClient.ClerkRestClient.ExecuteAsync(request);
 
             sakuraFmClient.Cookie = string.Join(';', response.Cookies!.DistinctBy(c => c.Name).Select(c => $"{c.Name}={c.Value}"));
-
             sakuraFmClient.ClerkRestClient.AddDefaultHeaders(new Dictionary<string, string>
             {
                 { "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7" },
@@ -82,16 +95,6 @@ namespace SakuraFmClient
                 { "Accept-Language", "en-US,en;q=0.5" },
                 { "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" },
                 { "Referer", "https://www.sakura.fm" }
-            });
-
-            sakuraFmClient.SakuraRestClient.AddDefaultHeaders(new Dictionary<string, string>
-            {
-                { "Accept-Encoding", "gzip, deflate, br, zstd" },
-                { "Accept-Language", "en-US,en;q=0.5" },
-                { "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" },
-                { "Referer", "https://www.sakura.fm" },
-                { "Rsc", "1" },
-                { "Next-Url", "/en"}
             });
 
             sakuraFmClient.Init = true;
@@ -103,6 +106,8 @@ namespace SakuraFmClient
         /// <exception cref="OperationFailedException"></exception>
         public static async Task<string> SendLoginEmailAsync(this SakuraFmClient sakuraFmClient, string email)
         {
+            sakuraFmClient.Refresh();
+
             var request1 = new RestRequest("/v1/client/sign_ins?_clerk_js_version=5.2.3", Method.Post);
             request1.AddHeader("Cookie", sakuraFmClient.Cookie);
             request1.AddBody($"identifier={email}", ContentType.FormUrlEncoded);
@@ -145,6 +150,8 @@ namespace SakuraFmClient
         /// <returns>User's auth token</returns>
         public static async Task<AuthorizedUser> EnsureLoginByEmailAsync(this SakuraFmClient sakuraFmClient, string signInAttemptId)
         {
+            sakuraFmClient.Refresh();
+
             var request = new RestRequest($"/v1/client/sign_ins/{signInAttemptId}?_clerk_js_version=5.2.4", Method.Get);
             request.AddHeader("Cookie", sakuraFmClient.Cookie);
             var response = await sakuraFmClient.ClerkRestClient.ExecuteAsync(request);
@@ -179,10 +186,12 @@ namespace SakuraFmClient
 
         /// <param name="sakuraFmClient"></param>
         /// <param name="sessionId"></param>
-        /// <param name="token"></param>
+        /// <param name="refreshToken"></param>
         /// <returns>Access token</returns>
         public static async Task<string> GetAccessTokenAsync(this SakuraFmClient sakuraFmClient, string sessionId, string refreshToken)
         {
+            sakuraFmClient.Refresh();
+
             var request = new RestRequest($"/v1/client/sessions/{sessionId}/tokens?_clerk_js_version=5.5.0", Method.Post);
             request.AddHeader("Cookie", $"__client={refreshToken};{sakuraFmClient.Cookie}");
 
@@ -209,6 +218,8 @@ namespace SakuraFmClient
         /// <returns></returns>
         public static async Task<string> CreateNewChatAsync(this SakuraFmClient sakuraFmClient, AuthorizedUser authorizedUser, SakuraCharacter character, string firstUserMessage, string locale = "en")
         {
+            sakuraFmClient.Refresh();
+
             var accessToken = await sakuraFmClient.GetAccessTokenAsync(authorizedUser.SessionId, authorizedUser.RefreshToken);
 
             var request = new RestRequest("/api/chat", Method.Post);
@@ -246,6 +257,8 @@ namespace SakuraFmClient
         /// <exception cref="OperationFailedException"></exception>
         public static async Task<MessageObject> SendMessageToChatAsync(this SakuraFmClient sakuraFmClient, AuthorizedUser authorizedUser, string chatId, string message, string locale = "en")
         {
+            sakuraFmClient.Refresh();
+
             var accessToken = await sakuraFmClient.GetAccessTokenAsync(authorizedUser.SessionId, authorizedUser.RefreshToken);
 
             var request = new RestRequest("/api/chat", Method.Post);
@@ -292,7 +305,6 @@ namespace SakuraFmClient
             var request = new RestRequest("/", Method.Get);
             request.AddQueryParameter("search", query);
             request.AddQueryParameter("allowNsfw", allowNsfw.ToString().ToLower());
-            request.AddHeader("Accept", "application/json");
 
             if (categories is not null)
             {
@@ -323,7 +335,6 @@ namespace SakuraFmClient
         public static async Task<SakuraCharacter> GetCharacterInfoAsync(this SakuraFmClient sakuraFmClient, string characterId)
         {
             var request = new RestRequest($"/chat/{characterId}", Method.Get);
-            request.AddHeader("Accept", "application/json");
 
             var response = await sakuraFmClient.SakuraRestClient.ExecuteAsync(request);
             if (response.StatusCode is not HttpStatusCode.OK)
@@ -341,8 +352,7 @@ namespace SakuraFmClient
         }
 
 
-
-
+        // Private
 
         private static string HumanizeRestResponseError(this RestResponse? response)
         {
