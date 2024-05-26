@@ -1,4 +1,4 @@
-﻿namespace SakuraFmClient.Models.Http;
+﻿namespace SakuraFm.Models.Http;
 
 public class RequestSendMessage
 {

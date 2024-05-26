@@ -1,4 +1,4 @@
-﻿namespace SakuraFmClient.Exceptions
+﻿namespace SakuraFm.Exceptions
 {
     internal class OperationFailedException : Exception
     {

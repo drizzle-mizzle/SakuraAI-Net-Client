@@ -1,8 +1,8 @@
 
 using System.Reflection;
-using SakuraFmClient.Models;
+using SakuraFm.Models;
 
-namespace SakuraFmClient.Test
+namespace SakuraFm.Test
 {
     public class Tests
     {

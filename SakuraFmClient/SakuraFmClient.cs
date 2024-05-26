@@ -3,13 +3,13 @@ using System.Net;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RestSharp;
-using SakuraFmClient.Exceptions;
-using SakuraFmClient.Models;
-using SakuraFmClient.Models.Http;
+using SakuraFm.Exceptions;
+using SakuraFm.Models;
+using SakuraFm.Models.Http;
 
-namespace SakuraFmClient
+namespace SakuraFm
 {
-    public sealed class SakuraFmClient : IDisposable
+    public class SakuraFmClient : IDisposable
     {
         private const int refreshTimeout = 60_000; // minute
         internal RestClient ApiRestClient { get; set; } = null!;
@@ -66,7 +66,7 @@ namespace SakuraFmClient
         #endregion Dispose
     }
 
-    public static partial class SakuraFmClientExt
+    public static class SakuraFmClientExt
     {
         public static async Task InitializeAsync(this SakuraFmClient sakuraFmClient)
         {
