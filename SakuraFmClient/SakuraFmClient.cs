@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System.Linq;
+using System.Linq.Expressions;
+using System.Diagnostics;
 using System.Net;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -35,8 +37,9 @@ namespace SakuraFm
                 }
 
                 this.InitializeAsync().Wait();
-                _sw.Restart();
             }
+
+            _sw.Restart();
         }
 
 
@@ -87,7 +90,7 @@ namespace SakuraFm
             var request = new RestRequest("/", Method.Get);
             var response = await sakuraFmClient.ClerkRestClient.ExecuteAsync(request);
 
-            sakuraFmClient.Cookie = string.Join(';', response.Cookies!.DistinctBy(c => c.Name).Select(c => $"{c.Name}={c.Value}"));
+            sakuraFmClient.Cookie = string.Join(';', response.Cookies!.Cast<Cookie>().Select(c => $"{c.Name}={c.Value}"));
             sakuraFmClient.ClerkRestClient.AddDefaultHeaders(new Dictionary<string, string>
             {
                 { "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7" },
@@ -126,7 +129,7 @@ namespace SakuraFm
             }
 
             var emailId = (jContent?["response"]?["supported_first_factors"] as JArray)?.First()?["email_address_id"]?.ToString();
-            var clientIdCookie = response1.Cookies?.FirstOrDefault(c => c.Name.Equals("__client"));
+            var clientIdCookie = response1.Cookies?.Cast<Cookie>().FirstOrDefault(c => c.Name.Equals("__client"));
 
             var request2 = new RestRequest($"/v1/client/sign_ins/{signInAttemptId}/prepare_first_factor?_clerk_js_version=5.2.4 ", Method.Post);
             request2.AddBody($"email_address_id={emailId}&redirect_url=https://www.sakura.fm/ru/sign-in#/verify&strategy=email_link", ContentType.FormUrlEncoded);
@@ -160,7 +163,7 @@ namespace SakuraFm
                 throw new OperationFailedException($"Failed to authorize user | Details: {response.HumanizeRestResponseError()}");
             }
 
-            var token = response.Cookies?.FirstOrDefault(c => c.Name.StartsWith("__client"));
+            var token = response.Cookies?.Cast<Cookie>().FirstOrDefault(c => c.Name.StartsWith("__client"));
             if (token is null)
             {
                 throw new OperationFailedException($"Failed to authorize user | Details: {response.HumanizeRestResponseError()}");
