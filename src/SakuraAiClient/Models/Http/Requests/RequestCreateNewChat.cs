@@ -1,4 +1,4 @@
-﻿namespace SakuraFm.Models.Http;
+﻿namespace SakuraAi.Models.Http.Requests;
 
 public class RequestCreateNewChat
 {

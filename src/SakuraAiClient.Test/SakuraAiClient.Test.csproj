@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SakuraFmClient\SakuraFmClient.csproj" />
+    <ProjectReference Include="..\SakuraAiClient\SakuraAiClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

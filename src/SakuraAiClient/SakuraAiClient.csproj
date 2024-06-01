@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>SakuraFm</RootNamespace>
+    <RootNamespace>SakuraAi</RootNamespace>
     <PackageId>SakuraFM .NET Client</PackageId>
     <Title>SakuraFM .NET Client</Title>
     <Authors>drizzle-mizzle</Authors>
