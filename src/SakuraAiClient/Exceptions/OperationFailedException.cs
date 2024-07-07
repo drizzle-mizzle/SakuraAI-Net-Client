@@ -1,4 +1,9 @@
-﻿namespace SakuraAi.Exceptions
+namespace SakuraAi.Exceptions;
+
+
+/// <inheritdoc />
+public class OperationFailedException : Exception
 {
-    internal class OperationFailedException(string? message) : Exception(message);
+    /// <inheritdoc />
+    public OperationFailedException(string message) : base(message) {}
 }

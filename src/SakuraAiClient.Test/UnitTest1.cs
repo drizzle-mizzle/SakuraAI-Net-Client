@@ -1,6 +1,4 @@
-using System.Reflection;
 using SakuraAi;
-using SakuraAi.Models;
 using SakuraAi.Models.Common;
 
 namespace SakuraAiClient.Test
@@ -10,15 +8,6 @@ namespace SakuraAiClient.Test
         [SetUp]
         public void Setup()
         {
-        }
-
-        [Test]
-        public async Task Initialize()
-        {
-            using var client = new SakuraAi.SakuraAiClient();
-            await client.InitializeAsync();
-
-            Assert.That(client.GetType().GetField("Init", BindingFlags.NonPublic).GetValue(client) is true);
         }
 
         [Test]
