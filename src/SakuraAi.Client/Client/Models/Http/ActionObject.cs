@@ -1,4 +1,4 @@
-﻿namespace SakuraAi.Models.Http;
+﻿namespace SakuraAi.Client.Models.Http;
 
 public class ActionObject
 {

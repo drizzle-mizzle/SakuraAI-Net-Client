@@ -1,4 +1,4 @@
-﻿namespace SakuraAi.Models.Http.Requests;
+﻿namespace SakuraAi.Client.Models.Http.Requests;
 
 public class InputNewChatContext
 {

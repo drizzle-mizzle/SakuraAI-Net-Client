@@ -1,4 +1,4 @@
-﻿namespace SakuraAi.Models.Common;
+﻿namespace SakuraAi.Client.Models.Common;
 
 public class SakuraCharacter
 {

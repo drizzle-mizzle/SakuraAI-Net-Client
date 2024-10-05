@@ -1,4 +1,4 @@
-﻿namespace SakuraAi.Models.Http.Responses;
+﻿namespace SakuraAi.Client.Models.Http.Responses;
 
 public class ChatResponse
 {

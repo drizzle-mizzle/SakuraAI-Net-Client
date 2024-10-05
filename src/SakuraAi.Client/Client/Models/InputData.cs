@@ -1,4 +1,4 @@
-﻿namespace SakuraAi.Models;
+﻿namespace SakuraAi.Client.Models;
 
 public enum Category
 {

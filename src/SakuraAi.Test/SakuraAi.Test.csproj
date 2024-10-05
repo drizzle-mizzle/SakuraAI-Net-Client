@@ -7,6 +7,7 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <RootNamespace>SakuraAi.Test</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SakuraAiClient\SakuraAiClient.csproj" />
+    <ProjectReference Include="..\SakuraAi.Client\SakuraAi.Client.csproj" />
+    <ProjectReference Include="..\SakuraAi\SakuraAi.csproj" />
   </ItemGroup>
 
   <ItemGroup>
