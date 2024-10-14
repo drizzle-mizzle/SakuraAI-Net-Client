@@ -1,6 +1,6 @@
 ﻿namespace SakuraAi.Client.Models.Common;
 
-public class AuthorizedUser
+public class SakuraAuthorizedUser
 {
     public string UserId { get; set; }
     public string Username { get; set; }

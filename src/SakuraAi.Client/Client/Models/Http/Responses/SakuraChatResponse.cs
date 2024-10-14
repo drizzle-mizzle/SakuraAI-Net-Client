@@ -1,8 +1,8 @@
 ﻿namespace SakuraAi.Client.Models.Http.Responses;
 
-public class ChatResponse
+public class SakuraChatResponse
 {
     public string chatId { get; set; }
-    public MessageObject[] messages { get; set; }
+    public SakuraMessage[] messages { get; set; }
     public bool success { get; set; }
 }

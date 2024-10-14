@@ -1,6 +1,6 @@
 ﻿namespace SakuraAi.Client.Models.Http;
 
-public class MessageObject
+public class SakuraMessage
 {
     public string content { get; set; }
     public string role { get; set; }

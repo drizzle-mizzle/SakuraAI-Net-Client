@@ -1,7 +1,7 @@
 ﻿namespace SakuraAi.Client.Models.Http.Requests;
 
-public class RequestSendMessage
+internal class RequestSendMessage
 {
-    public ActionObject action { get; set; }
+    public SakuraAction action { get; set; }
     public InputMessageContext context { get; set; }
 }

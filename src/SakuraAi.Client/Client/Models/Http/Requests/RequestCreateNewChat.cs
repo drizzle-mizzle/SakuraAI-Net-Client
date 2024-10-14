@@ -1,7 +1,7 @@
 ﻿namespace SakuraAi.Client.Models.Http.Requests;
 
-public class RequestCreateNewChat
+internal class RequestCreateNewChat
 {
-    public ActionObject action { get; set; }
+    public SakuraAction action { get; set; }
     public InputNewChatContext context { get; set; }
 }

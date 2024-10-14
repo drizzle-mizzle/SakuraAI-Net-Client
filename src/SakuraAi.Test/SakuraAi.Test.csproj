@@ -26,7 +26,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SakuraAi.Client\SakuraAi.Client.csproj" />
-    <ProjectReference Include="..\SakuraAi\SakuraAi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

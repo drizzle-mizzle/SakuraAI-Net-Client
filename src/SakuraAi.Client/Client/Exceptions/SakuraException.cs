@@ -2,7 +2,7 @@ namespace SakuraAi.Client.Exceptions;
 
 
 /// <inheritdoc />
-public class SakuraAiException : Exception
+public class SakuraException : Exception
 {
     /// <summary>
     /// HTTP status code
@@ -21,7 +21,7 @@ public class SakuraAiException : Exception
 
 
     /// <inheritdoc />
-    public SakuraAiException(string message, int statusCode, string data) : base(message)
+    public SakuraException(string message, int statusCode, string data) : base(message)
     {
         StatusCode = statusCode;
         Details = data;
