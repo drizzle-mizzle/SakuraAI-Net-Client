@@ -28,7 +28,7 @@ public class Tests
                 return;
             }
 
-            await Task.Delay(5000);
+            await Task.Delay(3000);
         }
 
         Assert.Fail();
@@ -40,9 +40,9 @@ public class Tests
     {
         using var client = new SakuraAiClient();
 
-        var characters = await client.SearchAsync("Kurisu");
+        var characters = await client.SearchAsync("Arcueid");
 
-        Assert.That(characters.Any(character => character.name.Contains("Kurisu")), Is.True);
+        Assert.That(characters.Any(character => character.name.Contains("Arcueid")), Is.True);
     }
 
 
@@ -51,9 +51,9 @@ public class Tests
     {
         using var client = new SakuraAiClient();
 
-        // var character = await client.GetCharacterInfoAsync("fqDaOBZ");
-        //
-        // Assert.That(character.name, Does.Contain("Kurisu"));
+        var character = await client.GetCharacterInfoAsync("fqDaOBZ");
+
+        Assert.That(character.name, Does.Contain("Kurisu"));
     }
 
 
@@ -81,11 +81,11 @@ public class Tests
         var chatId = await client.CreateNewChatAsync(user.SessionId, user.RefreshToken, character, "Hey");
         Assert.That(chatId, Has.Length.EqualTo(7));
 
-        // var responseMessage = await client.SendMessageToChatAsync(user.SessionId, user.RefreshToken, chatId, "Hey!");
-        // Assert.Multiple(() =>
-        // {
-        //     Assert.That(responseMessage.content, Is.Not.Empty);
-        //     Assert.That(responseMessage.role, Is.EqualTo("assistant"));
-        // });
+        var responseMessage = await client.SendMessageToChatAsync(user.SessionId, user.RefreshToken, chatId, "Hey!");
+        Assert.Multiple(() =>
+        {
+            Assert.That(responseMessage.content, Is.Not.Empty);
+            Assert.That(responseMessage.role, Is.EqualTo("assistant"));
+        });
     }
 }
