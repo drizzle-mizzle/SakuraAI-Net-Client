@@ -2,6 +2,7 @@
 using System.Dynamic;
 using System.Net;
 using System.Net.Mime;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
@@ -21,8 +22,8 @@ public class SakuraAiClient : IDisposable
     private const int RefreshTimeout = 60_000; // minute
 
     private const string CLERK_URI = "https://clerk.sakura.fm";
-    private const string API_URI = "https://api.sakura.fm";
-    private const string FRONTEND_URI = "https://www.sakura.fm";
+    private const string API_URI_BASE = "https://api.sakura.fm/api";
+    private const string FRONTEND_URI_BASE = "https://www.sakura.fm";
 
     private readonly HttpClient HTTP_CLIENT;
     private readonly Stopwatch _sw;
@@ -42,13 +43,11 @@ public class SakuraAiClient : IDisposable
         (string header, string value)[] defaultHeaders =
         [
             ("Accept", "application/json"),
-            ("Accept-Encoding", "gzip, deflate, br"),
+            ("Accept-Encoding", "gzip, deflate"),
             ("Accept-Language", "en-US,en;q=0.5"),
             ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
             ("Referer", "https://www.sakura.fm"),
-            ("Cache-Control", "no-cache"),
-            ("Pragma", "no-cache"),
-            ("Next-Router-Prefetch", "false")
+            ("RSC", "1")
         ];
 
         foreach (var dh in defaultHeaders)
@@ -95,7 +94,8 @@ public class SakuraAiClient : IDisposable
         request2.Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
             new("email_address_id", emailId),
-            new("redirect_url", "https://www.sakura.fm/ru/sign-in#/verify&strategy=email_link")
+            new("redirect_url", $"{FRONTEND_URI_BASE}/sign-in#/verify"),
+            new("strategy", "email_link")
         });
 
         request2.Headers.Add("Cookie", TEMP_COOKIES_SET);
@@ -115,6 +115,7 @@ public class SakuraAiClient : IDisposable
     }
 
 
+    private static readonly Regex CLIENT_COOKIE_REGEX = new(@"(?<=__client(_uat)?\=)[\S]*(?=;)");
     /// <exception cref="SakuraException"></exception>
     /// <returns>User's auth token</returns>
     public async Task<SakuraAuthorizedUser?> EnsureLoginByEmailAsync(SakuraSignInAttempt signInAttempt)
@@ -132,8 +133,8 @@ public class SakuraAiClient : IDisposable
         }
 
         var cookies = response.Headers.Single(h => h.Key.ToLower().StartsWith("set-cookie")).Value;
-
-        var token = cookies.FirstOrDefault(h => h.StartsWith("__client"));
+        var clientCookie = cookies.FirstOrDefault(h => h.StartsWith("__client"));
+        var token = clientCookie is null ? null : CLIENT_COOKIE_REGEX.Match(clientCookie).Value;
 
         if (token is null or "0")
         {
@@ -189,7 +190,7 @@ public class SakuraAiClient : IDisposable
 
         var accessToken = await GetAccessTokenAsync(sessionId, refreshToken);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URI}/api/chat");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URI_BASE}/chat");
         request.Headers.Add("Cookie", TEMP_COOKIES_SET);
         request.Headers.Add("Authorization", $"Bearer {accessToken}");
 
@@ -224,80 +225,80 @@ public class SakuraAiClient : IDisposable
             throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
         }
 
-        return "";
+        var content = await response.Content.ReadAsStringAsync();
+        var success = content?.Split('\n').Reverse().Any(line => line.Contains("success")) ?? false;
+        if (!success)
+        {
+            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
+        }
 
-        // var content = response.Content?.Split('\n').Last(line => line.Contains("success"));
-        // if (content is null)
-        // {
-        //     throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
-        // }
-        //
-        // var start = content.IndexOf('{');
-        // var end = content.LastIndexOf('}');
-        // content = Regex.Unescape(content[start..++end]);
-        //
-        // var chatResponse = JsonConvert.DeserializeObject<SakuraChatResponse>(content)!;
-        // if (chatResponse.success is false)
-        // {
-        //     throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
-        // }
-        //
-        // return chatResponse.chatId;
+        var start = content.IndexOf('{');
+        var end = content.LastIndexOf('}');
+        content = Regex.Unescape(content[start..++end]);
+
+        var chatResponse = JsonConvert.DeserializeObject<SakuraChatResponse>(content)!;
+        if (chatResponse.success is false)
+        {
+            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
+        }
+
+        return chatResponse.chatId;
     }
 
 
     /// <returns>Character response message</returns>
     /// <exception cref="SakuraException"></exception>
-    // public async Task<SakuraMessage> SendMessageToChatAsync(string sessionId, string refreshToken, string chatId, string message, string locale = "en")
-    // {
-    //     Refresh();
-    //
-    //     var accessToken = await GetAccessTokenAsync(sessionId, refreshToken);
-    //
-    //     var request = new RestRequest("/api/chat", Method.Post);
-    //     request.AddHeader("Cookie", _cookie);
-    //     request.AddHeader("Authorization", $"Bearer {accessToken}");
-    //
-    //     var createNewChatRequest = new RequestSendMessage
-    //     {
-    //         context = new InputMessageContext
-    //         {
-    //             chatId = chatId,
-    //             locale = locale
-    //         },
-    //         action = new SakuraAction
-    //         {
-    //             content = message,
-    //             type = "append"
-    //         }
-    //     };
-    //
-    //     request.AddJsonBody(JsonConvert.SerializeObject(createNewChatRequest));
-    //
-    //     var response = await _apiRestClient.ExecuteAsync(request);
-    //     if (response.StatusCode is not HttpStatusCode.OK)
-    //     {
-    //         throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
-    //     }
-    //
-    //     var content = response.Content?.Split('\n').Last(line => line.Contains("success"));
-    //     if (content is null)
-    //     {
-    //         throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
-    //     }
-    //
-    //     var start = content.IndexOf('{');
-    //     var end = content.LastIndexOf('}');
-    //     content = Regex.Unescape(content[start..++end]);
-    //
-    //     var chatResponse = JsonConvert.DeserializeObject<SakuraChatResponse>(content)!;
-    //     if (chatResponse.success is false)
-    //     {
-    //         throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
-    //     }
-    //
-    //     return chatResponse.messages.Last();
-    // }
+    public async Task<SakuraMessage> SendMessageToChatAsync(string sessionId, string refreshToken, string chatId, string message, string locale = "en")
+    {
+        Refresh();
+
+        var accessToken = await GetAccessTokenAsync(sessionId, refreshToken);
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URI_BASE}/chat");
+        request.Headers.Add("Cookie", TEMP_COOKIES_SET);
+        request.Headers.Add("Authorization", $"Bearer {accessToken}");
+
+        var createNewChatRequest = new RequestSendMessage
+        {
+            context = new InputMessageContext
+            {
+                chatId = chatId,
+                locale = locale
+            },
+            action = new SakuraAction
+            {
+                content = message,
+                type = "append"
+            }
+        };
+
+        request.Content = new StringContent(JsonConvert.SerializeObject(createNewChatRequest), Encoding.UTF8, MediaTypeNames.Application.Json);
+
+        var response = await HTTP_CLIENT.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
+        }
+
+        var content = await response.Content.ReadAsStringAsync();
+        var success = content?.Split('\n').Reverse().Any(line => line.Contains("success")) ?? false;
+        if (!success)
+        {
+            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
+        }
+
+        var start = content.IndexOf('{');
+        var end = content.LastIndexOf('}');
+        content = Regex.Unescape(content[start..++end]);
+
+        var chatResponse = JsonConvert.DeserializeObject<SakuraChatResponse>(content)!;
+        if (chatResponse.success is false)
+        {
+            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
+        }
+
+        return chatResponse.messages.Last();
+    }
 
 
     public enum CategoryMatchType { any, all }
@@ -319,44 +320,85 @@ public class SakuraAiClient : IDisposable
             }
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URI}/?");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URI_BASE}/?{urlParams}");
 
-        var response = await HTTP_CLIENT.SendAsync(request);l
+        var response = await HTTP_CLIENT.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
             throw new SakuraException("Failed to perform search", (int)response.StatusCode, HumanizeRestResponseError(response));
         }
 
         var content = await response.Content.ReadAsStringAsync();
-        var neededLine = content.Split('\n').Last(line => line.Contains("\"characters\""));
-        neededLine = neededLine[neededLine.IndexOf("{\"characters\"", StringComparison.Ordinal)..];
+        var contentLines = content.Split('\n');
+        var charactersLine = contentLines.Last(line => line.Contains("\"characters\""));
+        var jsonLine = charactersLine[charactersLine.IndexOf("{\"characters\"", StringComparison.Ordinal)..];
 
-        var jContent = JsonConvert.DeserializeObject<JObject>(neededLine)!;
+        var jContent = JsonConvert.DeserializeObject<JObject>(jsonLine)!;
         var characters = JsonConvert.DeserializeObject<List<SakuraCharacter>>(jContent["characters"]!.ToString())!;
+
+        foreach (var character in characters)
+        {
+            var props = character.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(p => p.PropertyType == typeof(string));
+
+            foreach (var prop in props)
+            {
+                var stringValue = (string?)prop.GetValue(character);
+                if (stringValue is null || !stringValue.StartsWith('$'))
+                {
+                    continue;
+                }
+
+                var newValue = FindValueInRscPayload(stringValue, contentLines);
+                if (newValue.Length > 0)
+                {
+                    prop.SetValue(character, newValue);
+                }
+            }
+
+        }
 
         return characters;
     }
 
 
     /// <exception cref="SakuraException"></exception>
-    // public async Task<SakuraCharacter> GetCharacterInfoAsync(string characterId)
-    // {
-    //     var request = new RestRequest($"/chat/{characterId}");
-    //
-    //     var response = await _sakuraRestClient.ExecuteAsync(request);
-    //     if (response.StatusCode is not HttpStatusCode.OK)
-    //     {
-    //         throw new SakuraException("Failed to get character info", (int)response.StatusCode, HumanizeRestResponseError(response));
-    //     }
-    //
-    //     var neededLine = response.Content.Split('\n').First(line => line.Contains("\"success\""));
-    //     neededLine = neededLine[neededLine.IndexOf('{')..];
-    //
-    //     var jContent = JsonConvert.DeserializeObject<JObject>(neededLine)!;
-    //     var character = JsonConvert.DeserializeObject<SakuraCharacter>(jContent["data"]!["character"]!.ToString())!;
-    //
-    //     return character;
-    // }
+    public async Task<SakuraCharacter> GetCharacterInfoAsync(string characterId)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URI_BASE}/chat/{characterId}");
+
+        var response = await HTTP_CLIENT.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new SakuraException("Failed to get character info", (int)response.StatusCode, HumanizeRestResponseError(response));
+        }
+
+        var content = await response.Content.ReadAsStringAsync();
+        var contentLines = content.Split('\n');
+        var successLine = contentLines.First(line => line.Contains("\"success\""));
+        var jsonLine = successLine[successLine.IndexOf('{')..];
+
+        var jContent = JsonConvert.DeserializeObject<JObject>(jsonLine)!;
+        var character = JsonConvert.DeserializeObject<SakuraCharacter>(jContent["data"]!["character"]!.ToString())!;
+
+        var props = character.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(p => p.PropertyType == typeof(string));
+
+        foreach (var prop in props)
+        {
+            var stringValue = (string?)prop.GetValue(character);
+            if (stringValue is null || !stringValue.StartsWith('$'))
+            {
+                continue;
+            }
+
+            var newValue = FindValueInRscPayload(stringValue, contentLines);
+            if (newValue.Length > 0)
+            {
+                prop.SetValue(character, newValue);
+            }
+        }
+
+        return character;
+    }
 
 
     // Private
@@ -393,6 +435,45 @@ public class SakuraAiClient : IDisposable
         }
 
         return details;
+    }
+
+
+    private static readonly Regex SOME_RSC_KEY_REGEX = new (@"^[\dabcdef]{1,4}\:", RegexOptions.Compiled);
+    private static string FindValueInRscPayload(string originalValue, string[] rscPayload)
+    {
+        var rscKey = originalValue[1..] + ':';
+
+        var i = 0;
+        var result = string.Empty;
+        var searchingFirstLine = true; // or its tail
+
+        while (i < rscPayload.Length)
+        {
+            var line = rscPayload[i];
+
+            if (searchingFirstLine && line.StartsWith(rscKey))
+            {
+                var commaIndex = line.IndexOf(',') + 1;
+                result = line[commaIndex..];
+                searchingFirstLine = false;
+            }
+            else if (!searchingFirstLine)
+            {
+                if (SOME_RSC_KEY_REGEX.IsMatch(line)) // end of the tail
+                {
+                    break;
+                }
+
+                if (line.Length > 1)
+                {
+                    result += $"\n{line}";
+                }
+            }
+
+            i++;
+        }
+
+        return result;
     }
 
 
