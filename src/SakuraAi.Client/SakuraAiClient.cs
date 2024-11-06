@@ -76,7 +76,7 @@ public class SakuraAiClient : IDisposable
         var response1 = await HTTP_CLIENT.SendAsync(request1);
         if (!response1.IsSuccessStatusCode)
         {
-            throw new SakuraException($"Failed to send login link to email {email}", (int)response1.StatusCode, HumanizeRestResponseError(response1));
+            throw new SakuraException($"Failed to send login link to email {email}", (int)response1.StatusCode, HumanizeHttpResponseError(response1));
         }
 
         var content1 = await response1.Content.ReadAsStringAsync();
@@ -86,7 +86,7 @@ public class SakuraAiClient : IDisposable
         var emailId = (jContent1?["response"]?["supported_first_factors"] as JArray)?.First()?["email_address_id"]?.ToString();
         if (signInAttemptId is null || emailId is null)
         {
-            throw new SakuraException($"Failed to send login link to email {email}", (int)response1.StatusCode, HumanizeRestResponseError(response1));
+            throw new SakuraException($"Failed to send login link to email {email}", (int)response1.StatusCode, HumanizeHttpResponseError(response1));
         }
 
         var request2 = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URI}/v1/client/sign_ins/{signInAttemptId}/prepare_first_factor");
@@ -102,7 +102,7 @@ public class SakuraAiClient : IDisposable
         var response2 = await HTTP_CLIENT.SendAsync(request2);
         if (!response2.IsSuccessStatusCode)
         {
-            throw new SakuraException($"Failed to prepare first factor {email}", (int)response2.StatusCode, HumanizeRestResponseError(response2));
+            throw new SakuraException($"Failed to prepare first factor {email}", (int)response2.StatusCode, HumanizeHttpResponseError(response2));
         }
 
         return new SakuraSignInAttempt
@@ -128,7 +128,7 @@ public class SakuraAiClient : IDisposable
 
         if (response.StatusCode is not HttpStatusCode.OK and not HttpStatusCode.Unauthorized)
         {
-            throw new SakuraException("Failed to authorize user", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to authorize user", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var cookies = response.Headers.Single(h => h.Key.ToLower().StartsWith("set-cookie")).Value;
@@ -172,7 +172,7 @@ public class SakuraAiClient : IDisposable
         var response = await HTTP_CLIENT.SendAsync(request);
         if (response.StatusCode is not HttpStatusCode.OK)
         {
-            throw new SakuraException("Failed to get access token", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to get access token", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var content = await response.Content.ReadAsStringAsync();
@@ -220,14 +220,14 @@ public class SakuraAiClient : IDisposable
         var response = await HTTP_CLIENT.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
-            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var content = await response.Content.ReadAsStringAsync();
         var success = content?.Split('\n').Reverse().Any(line => line.Contains("success")) ?? false;
         if (!success)
         {
-            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var start = content.IndexOf('{');
@@ -237,7 +237,7 @@ public class SakuraAiClient : IDisposable
         var chatResponse = JsonConvert.DeserializeObject<SakuraChatResponse>(content)!;
         if (chatResponse.success is false)
         {
-            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to create new chat", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         return chatResponse;
@@ -275,14 +275,14 @@ public class SakuraAiClient : IDisposable
         var response = await HTTP_CLIENT.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
-            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var content = await response.Content.ReadAsStringAsync();
         var success = content?.Split('\n').Reverse().Any(line => line.Contains("success")) ?? false;
         if (!success)
         {
-            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var start = content.IndexOf('{');
@@ -292,7 +292,7 @@ public class SakuraAiClient : IDisposable
         var chatResponse = JsonConvert.DeserializeObject<SakuraChatResponse>(content)!;
         if (chatResponse.success is false)
         {
-            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to send message", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         return chatResponse.messages.Last();
@@ -323,7 +323,7 @@ public class SakuraAiClient : IDisposable
         var response = await HTTP_CLIENT.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
-            throw new SakuraException("Failed to perform search", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to perform search", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var content = await response.Content.ReadAsStringAsync();
@@ -366,7 +366,7 @@ public class SakuraAiClient : IDisposable
         var response = await HTTP_CLIENT.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
-            throw new SakuraException("Failed to get character info", (int)response.StatusCode, HumanizeRestResponseError(response));
+            throw new SakuraException("Failed to get character info", (int)response.StatusCode, HumanizeHttpResponseError(response));
         }
 
         var content = await response.Content.ReadAsStringAsync();
@@ -400,7 +400,7 @@ public class SakuraAiClient : IDisposable
     // Private
 
 
-    private static string HumanizeRestResponseError(HttpResponseMessage? response)
+    private static string HumanizeHttpResponseError(HttpResponseMessage? response)
     {
         string details;
         if (response is null)
