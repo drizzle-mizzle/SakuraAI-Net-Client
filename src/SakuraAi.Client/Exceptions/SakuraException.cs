@@ -17,7 +17,7 @@ public class SakuraException : Exception
 
     /// <inheritdoc />
     public override string ToString()
-        => $"[ Response ]\n{Details}\n[ StackTrace ]\n{base.ToString()}";
+        => $"[ Details ]\n{Details}\n[ StackTrace ]\n{base.ToString()}";
 
 
     /// <inheritdoc />
