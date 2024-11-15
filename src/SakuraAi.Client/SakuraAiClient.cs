@@ -65,7 +65,7 @@ public class SakuraAiClient : IDisposable
     /// <returns>loginAttemptId to be used in EnsureLoginByEmail()</returns>
     public async Task<SakuraSignInAttempt> SendLoginEmailAsync(string email)
     {
-        Refresh();
+        Refresh(force: true);
 
         var request1 = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URI}/v1/client/sign_ins");
         request1.Headers.Add("Cookie", TEMP_COOKIES_SET);
@@ -184,6 +184,22 @@ public class SakuraAiClient : IDisposable
 
         return (string)jContent["jwt"]!;
     }
+
+
+    // public async Task DeleteSessionAsync(string refreshToken)
+    // {
+    //     var request = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URI}/v1/client/sessions?__clerk_api_version=2021-02-05&_clerk_js_version=5.34.1&_method=DELETE");
+    //     request.Headers.Add("Cookie", $"__client={refreshToken};{TEMP_COOKIES_SET}");
+    //     request.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+    //
+    //     var response = await HTTP_CLIENT.SendAsync(request);
+    //     if (!response.IsSuccessStatusCode)
+    //     {
+    //         var content = await response.Content.ReadAsStringAsync();
+    //         throw new SakuraException($"Failed to log out of the sessions: {GetErrorDescription(content)}", (int)response.StatusCode, HumanizeHttpResponseError(response));
+    //     }
+    // }
+
 
     /// <exception cref="SakuraException"></exception>
     public async Task<SakuraChatResponse> CreateNewChatAsync(string sessionId, string refreshToken, SakuraCharacter character, string firstUserMessage, string locale = "en")
@@ -533,9 +549,9 @@ public class SakuraAiClient : IDisposable
     }
 
 
-    private void Refresh()
+    private void Refresh(bool force = false)
     {
-        if (TEMP_COOKIES_SET is not null && _sw.ElapsedMilliseconds < RefreshTimeout)
+        if (!force && TEMP_COOKIES_SET is not null && _sw.ElapsedMilliseconds < RefreshTimeout)
         {
             return;
         }
