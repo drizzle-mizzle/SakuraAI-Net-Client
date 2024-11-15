@@ -25,7 +25,7 @@ public class SakuraAiClient : IDisposable
     private const string API_URI_BASE = "https://api.sakura.fm/api";
     private const string FRONTEND_URI_BASE = "https://www.sakura.fm";
 
-    private readonly HttpClient HTTP_CLIENT;
+    private HttpClient HTTP_CLIENT = CreateHttpClient();
     private readonly Stopwatch _sw;
 
     private string TEMP_COOKIES_SET { get; set; } = null!;
@@ -33,31 +33,37 @@ public class SakuraAiClient : IDisposable
 
     public SakuraAiClient()
     {
+        _sw = Stopwatch.StartNew();
+
+        Refresh();
+    }
+
+
+    private static HttpClient CreateHttpClient()
+    {
         var handler = new HttpClientHandler
         {
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
         };
 
-        HTTP_CLIENT = new HttpClient(handler);
+        var client = new HttpClient(handler);
 
         (string header, string value)[] defaultHeaders =
         [
             ("Accept", "application/json"),
             ("Accept-Encoding", "gzip, deflate"),
             ("Accept-Language", "en-US,en;q=0.5"),
-            ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
             ("Referer", "https://www.sakura.fm"),
-            ("RSC", "1")
+            ("RSC", "1"),
+            ("User-Agent", GetRandomUserAgent())
         ];
 
         foreach (var dh in defaultHeaders)
         {
-            HTTP_CLIENT.DefaultRequestHeaders.Add(dh.header, dh.value);
+            client.DefaultRequestHeaders.Add(dh.header, dh.value);
         }
 
-        _sw = Stopwatch.StartNew();
-
-        Refresh();
+        return client;
     }
 
 
@@ -551,22 +557,78 @@ public class SakuraAiClient : IDisposable
 
     private void Refresh(bool force = false)
     {
-        if (!force && TEMP_COOKIES_SET is not null && _sw.ElapsedMilliseconds < RefreshTimeout)
+        var justStarted = TEMP_COOKIES_SET is null;
+        if (!force && !justStarted && _sw.ElapsedMilliseconds < RefreshTimeout)
         {
             return;
         }
 
         lock (HTTP_CLIENT)
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URI}/v1/client");
-            var response = HTTP_CLIENT.SendAsync(request).GetAwaiter().GetResult();
+            if (!justStarted)
+            {
+                HTTP_CLIENT?.Dispose();
+                HTTP_CLIENT = CreateHttpClient();
+            }
 
-            var cookies = response.Headers.Single(h => h.Key.ToLower().StartsWith("set-cookie")).Value;
-            TEMP_COOKIES_SET = string.Join(';', cookies);
+            var request1 = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URI}/npm/@clerk/clerk-js@5.34.1/dist/clerk.browser.js");
+            var response1 = HTTP_CLIENT.SendAsync(request1).GetAwaiter().GetResult();
+            var cookies1 = response1.Headers.FirstOrDefault(h => h.Key.ToLower().StartsWith("set-cookie"));
+
+            var request2 = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URI}/v1/client?__clerk_api_version=2021-02-05&_clerk_js_version=5.34.1");
+            if (cookies1.Value is not null)
+            {
+                request2.Headers.Add("Cookie", string.Join(';', cookies1.Value.Select(c => c.Split(';')[0])));
+            }
+
+            var response2 = HTTP_CLIENT.SendAsync(request2).GetAwaiter().GetResult();
+            var cookies2 = response2.Headers.Single(h => h.Key.ToLower().StartsWith("set-cookie")).Value.Select(c => c.Split(';')[0]);
+            TEMP_COOKIES_SET = string.Join(';', cookies2);
         }
 
         _sw.Restart();
     }
+
+
+    private static readonly string[] _UAs =
+    {
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (X11; Linux i686; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (X11; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+        "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)",
+        "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0)",
+        "Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)",
+        "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)",
+        "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)",
+        "Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko",
+        "Mozilla/5.0 (Windows NT 6.2; Trident/7.0; rv:11.0) like Gecko",
+        "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko",
+        "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.2535.67",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.2535.67",
+        "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Vivaldi/6.7.3329.35",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Vivaldi/6.7.3329.35",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Vivaldi/6.7.3329.35",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Vivaldi/6.7.3329.35",
+        "Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Vivaldi/6.7.3329.35",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 OPR/111.0.0.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 OPR/111.0.0.0",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 OPR/111.0.0.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 YaBrowser/24.4.4.1160 Yowser/2.5 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 YaBrowser/24.4.4.1160 Yowser/2.5 Safari/537.36"
+    };
+
+
+    private static string GetRandomUserAgent()
+        => _UAs[new Random().Next(0, _UAs.Length - 1)];
 
 
     #region Dispose
