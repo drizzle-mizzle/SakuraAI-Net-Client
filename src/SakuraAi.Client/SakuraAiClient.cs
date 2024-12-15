@@ -21,9 +21,9 @@ public class SakuraAiClient : IDisposable
 {
     private const int RefreshTimeout = 60_000; // minute
 
-    private const string CLERK_URI = "https://clerk.sakura.fm";
-    private const string API_URI_BASE = "https://api.sakura.fm/api";
-    private const string FRONTEND_URI_BASE = "https://www.sakura.fm";
+    private const string CLERK_URL_BASE = "https://clerk.sakura.fm";
+    private const string API_URL_BASE = "https://api.sakura.fm/api";
+    private const string FRONTEND_URL_BASE = "https://www.sakura.fm";
 
     private HttpClient HTTP_CLIENT = CreateHttpClient();
     private readonly Stopwatch _sw;
@@ -73,7 +73,7 @@ public class SakuraAiClient : IDisposable
     {
         Refresh(force: true);
 
-        var request1 = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URI}/v1/client/sign_ins");
+        var request1 = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URL_BASE}/v1/client/sign_ins");
         request1.Headers.Add("Cookie", TEMP_COOKIES_SET);
         request1.Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
@@ -97,11 +97,11 @@ public class SakuraAiClient : IDisposable
             throw new SakuraException($"Failed to send login link to email {email}: signInAttemptId or emailId is missing", (int)response1.StatusCode, HumanizeHttpResponseError(response1));
         }
 
-        var request2 = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URI}/v1/client/sign_ins/{signInAttemptId}/prepare_first_factor");
+        var request2 = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URL_BASE}/v1/client/sign_ins/{signInAttemptId}/prepare_first_factor");
         request2.Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
             new("email_address_id", emailId),
-            new("redirect_url", $"{FRONTEND_URI_BASE}/sign-in#/verify"),
+            new("redirect_url", $"{FRONTEND_URL_BASE}/sign-in#/verify"),
             new("strategy", "email_link")
         });
 
@@ -130,7 +130,7 @@ public class SakuraAiClient : IDisposable
     {
         Refresh();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URI}/v1/client/sign_ins/{signInAttempt.Id}");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URL_BASE}/v1/client/sign_ins/{signInAttempt.Id}");
         request.Headers.Add("Cookie", signInAttempt.Cookie);
 
         var response = await HTTP_CLIENT.SendAsync(request);
@@ -175,7 +175,7 @@ public class SakuraAiClient : IDisposable
     {
         Refresh();
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URI}/v1/client/sessions/{sessionId}/tokens?_clerk_js_version=5.5.0");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{CLERK_URL_BASE}/v1/client/sessions/{sessionId}/tokens?_clerk_js_version=5.5.0");
         request.Headers.Add("Cookie", $"__client={refreshToken};{TEMP_COOKIES_SET}");
 
         var response = await HTTP_CLIENT.SendAsync(request);
@@ -214,7 +214,7 @@ public class SakuraAiClient : IDisposable
 
         var accessToken = await GetAccessTokenAsync(sessionId, refreshToken);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URI_BASE}/chat");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URL_BASE}/chat");
         request.Headers.Add("Cookie", TEMP_COOKIES_SET);
         request.Headers.Add("Authorization", $"Bearer {accessToken}");
 
@@ -279,7 +279,7 @@ public class SakuraAiClient : IDisposable
 
         var accessToken = await GetAccessTokenAsync(sessionId, refreshToken);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URI_BASE}/chat");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{API_URL_BASE}/chat");
         request.Headers.Add("Cookie", TEMP_COOKIES_SET);
         request.Headers.Add("Authorization", $"Bearer {accessToken}");
 
@@ -346,7 +346,7 @@ public class SakuraAiClient : IDisposable
             }
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URI_BASE}/?{urlParams}");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URL_BASE}/?{urlParams}");
 
         var response = await HTTP_CLIENT.SendAsync(request);
         var content = await response.Content.ReadAsStringAsync();
@@ -390,7 +390,7 @@ public class SakuraAiClient : IDisposable
     /// <exception cref="SakuraException"></exception>
     public async Task<SakuraCharacter> GetCharacterInfoAsync(string characterId)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URI_BASE}/chat/{characterId}");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{FRONTEND_URL_BASE}/chat/{characterId}");
 
         var response = await HTTP_CLIENT.SendAsync(request);
         var content = await response.Content.ReadAsStringAsync();
@@ -571,11 +571,11 @@ public class SakuraAiClient : IDisposable
                 HTTP_CLIENT = CreateHttpClient();
             }
 
-            var request1 = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URI}/npm/@clerk/clerk-js@5.34.1/dist/clerk.browser.js");
+            var request1 = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URL_BASE}/npm/@clerk/clerk-js@5.34.1/dist/clerk.browser.js");
             var response1 = HTTP_CLIENT.SendAsync(request1).GetAwaiter().GetResult();
             var cookies1 = response1.Headers.FirstOrDefault(h => h.Key.ToLower().StartsWith("set-cookie"));
 
-            var request2 = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URI}/v1/client?__clerk_api_version=2021-02-05&_clerk_js_version=5.34.1");
+            var request2 = new HttpRequestMessage(HttpMethod.Get, $"{CLERK_URL_BASE}/v1/client?__clerk_api_version=2021-02-05&_clerk_js_version=5.34.1");
             if (cookies1.Value is not null)
             {
                 request2.Headers.Add("Cookie", string.Join(';', cookies1.Value.Select(c => c.Split(';')[0])));
