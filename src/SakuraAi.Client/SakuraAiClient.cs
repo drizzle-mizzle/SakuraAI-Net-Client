@@ -471,15 +471,8 @@ public class SakuraAiClient : IDisposable
 
     private static string GetErrorDescription(string? content)
     {
-        try
-        {
-            var sakuraError = JsonConvert.DeserializeObject<SakuraErrorResponse>(content!);
-            return sakuraError!.Humanize();
-        }
-        catch
-        {
-            return "SOMETHING WENT WRONG";
-        }
+        var sakuraError = JsonConvert.DeserializeObject<SakuraErrorResponse>(content!);
+        return sakuraError!.Humanize();
     }
 
 
