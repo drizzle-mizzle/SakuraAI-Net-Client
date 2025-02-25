@@ -78,10 +78,14 @@ public class Tests
 
         };
 
-        var chatId = await client.CreateNewChatAsync(user.SessionId, user.RefreshToken, character, "Hey");
-        Assert.That(chatId, Has.Length.EqualTo(7));
+        var response = await client.CreateNewChatAsync(user.SessionId, user.RefreshToken, character, "Hey");
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.success, Is.True);
+            Assert.That(response.chatId, Has.Length.EqualTo(7));
+        });
 
-        var responseMessage = await client.SendMessageToChatAsync(user.SessionId, user.RefreshToken, chatId, "Hey!");
+        var responseMessage = await client.SendMessageToChatAsync(user.SessionId, user.RefreshToken, response.chatId, "Hey!");
         Assert.Multiple(() =>
         {
             Assert.That(responseMessage.content, Is.Not.Empty);
